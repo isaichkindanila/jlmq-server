@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Test</title>
+</head>
+<body>
+<form>
+    <input id="text" type="text" placeholder="text">
+    <input type="button" value="send" onclick="sendMessage()">
+    <input type="button" value="connect" onclick="connect()">
+</form>
+<ul id="messages"></ul>
+<script>
+    fetch("/queue", {
+        "method": "post",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": JSON.stringify({
+            "name": "test"
+        })
+    });
+
+    const textInput = document.getElementById("text");
+    const messages = document.getElementById("messages");
+
+    const socket = new WebSocket("ws://localhost:8080/jlmq");
+
+    socket.onmessage = (ev) => {
+        console.log("received: " + ev.data);
+        const data = JSON.parse(ev.data);
+
+        socket.send(JSON.stringify({
+            "command": "acknowledge",
+            "message": data.message
+        }));
+
+        messages.innerHTML += "<li>" + data.message + ": " + data.body.text + "</li>";
+
+        setTimeout(() => {
+            socket.send(JSON.stringify({
+                "command": "completed",
+                "message": data.message
+            }));
+        }, 500);
+    };
+
+    function sendMessage() {
+        console.log("sending: " + textInput.value)
+        socket.send(JSON.stringify({
+            "command": "send",
+            "queue": "test",
+            "body": {
+                "text": textInput.value
+            }
+        }));
+    }
+
+    function connect() {
+        console.log("subscribing")
+        socket.send(JSON.stringify({
+            "command": "subscribe",
+            "queue": "test"
+        }));
+    }
+</script>
+</body>
+</html>
